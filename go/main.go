@@ -14,8 +14,7 @@ const (
 )
 
 var config = tls.Config{
-	ServerName:         "1.1.1.1",
-	InsecureSkipVerify: true,
+	ServerName: "1.1.1.1",
 }
 
 func startProxyUDP(udpConn net.PacketConn) error {
@@ -31,7 +30,7 @@ func startProxyUDP(udpConn net.PacketConn) error {
 		}
 
 		log.Printf("[UDP] - Received DNS request from %s\n", addr.String())
-
+		log.Println("[UDP] - Connecting to DNS server...")
 		conn, err := net.Dial("udp", dnsServerAddr+":"+dnsServerPortUDP)
 		if err != nil {
 			log.Println("[UDP] - Error connecting to DNS server:", err)
@@ -55,7 +54,7 @@ func startProxyUDP(udpConn net.PacketConn) error {
 		}
 
 		// TODO: log the response from the dns server
-		log.Printf("[UDP] - Received DNS response from %s udp\n", dnsServerAddr)
+		log.Printf("[UDP] - Received DNS response from %s \n", dnsServerAddr)
 
 		_, err = udpConn.WriteTo(buffer[:n], addr)
 		if err != nil {
@@ -99,7 +98,7 @@ func startProxyTCP(listener net.Listener) error {
 		log.Printf("[TCP] - Connected to DNS server: %s:%s", dnsServerAddr, dnsServerPortTLS)
 		go copy(conn, serverTLSConn)
 		go copy(serverTLSConn, conn)
-
+		log.Printf("[TCP] - Received DNS response from %s \n", dnsServerAddr)
 		// TODO: log the response from the dns server
 	}
 }
