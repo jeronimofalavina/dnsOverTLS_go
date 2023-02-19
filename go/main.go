@@ -7,27 +7,18 @@ import (
 	"net"
 )
 
-func main() {
+const (
 	// Specify the address of the DNS server to forward requests to
-	dnsServerAddr := "1.1.1.1"
-	dnsServerPort := "853"
+	dnsServerAddr = "1.1.1.1"
+	dnsServerPort = "853"
+)
 
-	// Load TLS configuration
-	cert, err := tls.LoadX509KeyPair("cert.pem", "key.pem")
-	if err != nil {
-		panic(err)
-	}
-	config := tls.Config{
-		Certificates: []tls.Certificate{cert},
-		ServerName:   "1.1.1.1",
-		//	InsecureSkipVerify: true,
-	}
-	// Listen for incoming DNS requests on port 853
-	listener, err := net.Listen("tcp", ":5333")
-	if err != nil {
-		panic(err)
-	}
-	defer listener.Close()
+var config = tls.Config{
+	ServerName:         "1.1.1.1",
+	InsecureSkipVerify: true,
+}
+
+func startProxyTCP(listener net.Listener) error {
 
 	fmt.Println("DNS proxy listening on port 853")
 
@@ -69,4 +60,14 @@ func main() {
 		}()
 
 	}
+}
+
+func main() {
+	// Listen for incoming DNS requests on port 853
+	listener, err := net.Listen("tcp", ":5333")
+	if err != nil {
+		panic(err)
+	}
+	defer listener.Close()
+	startProxyTCP(listener)
 }
