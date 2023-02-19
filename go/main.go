@@ -8,7 +8,6 @@ import (
 )
 
 const (
-	// Specify the address of the DNS server to forward requests to
 	dnsServerAddr = "1.1.1.1"
 	dnsServerPort = "853"
 )
@@ -18,13 +17,19 @@ var config = tls.Config{
 	InsecureSkipVerify: true,
 }
 
+func copy(src net.Conn, dest net.Conn) error {
+	_, err := io.Copy(dest, src)
+	if err != nil {
+		fmt.Println("Error copying data to server:", err)
+	}
+	return err
+}
+
 func startProxyTCP(listener net.Listener) error {
 
 	fmt.Println("DNS proxy listening on port 853")
 
-	// Loop forever, handling incoming requests
 	for {
-		// Accept the incoming DNS request
 		conn, err := listener.Accept()
 		if err != nil {
 			fmt.Println("Error accepting connection:", err)
@@ -32,7 +37,6 @@ func startProxyTCP(listener net.Listener) error {
 		}
 
 		fmt.Println("Connecting to DNS server...")
-		// Attempt to establish a TLS connection to the DNS server
 		serverTLSConn, err := tls.Dial("tcp", dnsServerAddr+":"+dnsServerPort, &config)
 		if err != nil {
 			fmt.Println("Error connecting to DNS server:", err)
@@ -41,30 +45,13 @@ func startProxyTCP(listener net.Listener) error {
 		}
 
 		fmt.Println("Connected to DNS server.")
-
-		go func() {
-			_, err := io.Copy(serverTLSConn, conn)
-			if err != nil {
-				fmt.Println("Error copying data to server:", err)
-			}
-
-		}()
-
-		go func() {
-			_, err := io.Copy(conn, serverTLSConn)
-			if err != nil {
-				fmt.Println("Error copying data to client:", err)
-			}
-			conn.Close()
-			serverTLSConn.Close()
-		}()
-
+		go copy(conn, serverTLSConn)
+		go copy(serverTLSConn, conn)
 	}
 }
 
 func main() {
-	// Listen for incoming DNS requests on port 853
-	listener, err := net.Listen("tcp", ":5333")
+	listener, err := net.Listen("tcp", ":53")
 	if err != nil {
 		panic(err)
 	}
