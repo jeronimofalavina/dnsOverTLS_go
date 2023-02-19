@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/tls"
-	"fmt"
 	"io"
 	"log"
 	"net"
@@ -19,51 +18,49 @@ var config = tls.Config{
 	InsecureSkipVerify: true,
 }
 
-func copy(src net.Conn, dest net.Conn) error {
-	_, err := io.Copy(dest, src)
-	if err != nil {
-		fmt.Println("Error copying data to server:", err)
-	}
-	return err
-}
-
 func startProxyUDP(udpConn net.PacketConn) error {
-	fmt.Println("DNS proxy listening on UDP port 53")
+	log.Println("[UDP] - DNS proxy listening on UDP port 53")
 
 	for {
+
 		buffer := make([]byte, 512)
 		n, addr, err := udpConn.ReadFrom(buffer)
 		if err != nil {
-			fmt.Println("Error reading request:", err)
+			log.Println("[UDP] - Error reading request:", err)
 			continue
 		}
 
-		fmt.Printf("Received DNS request from %s\n", addr.String())
+		log.Printf("[UDP] - Received DNS request from %s\n", addr.String())
 
 		conn, err := net.Dial("udp", dnsServerAddr+":"+dnsServerPortUDP)
 		if err != nil {
-			fmt.Println("Error connecting to DNS server:", err)
+			log.Println("[UDP] - Error connecting to DNS server:", err)
+			conn.Close()
 			continue
 		}
 
 		_, err = conn.Write(buffer[:n])
 		if err != nil {
-			fmt.Println("Error sending request to DNS server:", err)
+			log.Println("[UDP] - Error sending request to DNS server:", err)
+			conn.Close()
 			continue
 		}
 
 		buffer = make([]byte, 512)
 		n, err = conn.Read(buffer)
 		if err != nil {
-			fmt.Println("Error reading response from DNS server:", err)
+			log.Println("[UDP] - Error reading response from DNS server:", err)
+			conn.Close()
 			continue
 		}
 
-		fmt.Printf("Received DNS response from %s udp\n", dnsServerAddr)
+		// TODO: log the response from the dns server
+		log.Printf("[UDP] - Received DNS response from %s udp\n", dnsServerAddr)
 
 		_, err = udpConn.WriteTo(buffer[:n], addr)
 		if err != nil {
-			fmt.Println("Error sending response to client:", err)
+			log.Println("[UDP] - Error sending response to client:", err)
+			conn.Close()
 			continue
 		}
 		conn.Close()
@@ -71,33 +68,44 @@ func startProxyUDP(udpConn net.PacketConn) error {
 
 }
 
+func copy(src net.Conn, dest net.Conn) error {
+	_, err := io.Copy(dest, src)
+	if err != nil {
+		log.Panicln("[TCP] - Error copying from message from: "+dest.RemoteAddr().String()+" to server:"+src.LocalAddr().String(), err)
+	}
+	return err
+}
+
 func startProxyTCP(listener net.Listener) error {
 
-	fmt.Println("DNS proxy listening on TCP port 53")
+	log.Println("[TCP] - DNS proxy listening on TCP port 53")
 
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
-			fmt.Println("Error accepting connection:", err)
-			continue
-		}
-
-		fmt.Println("Connecting to DNS server...")
-		serverTLSConn, err := tls.Dial("tcp", dnsServerAddr+":"+dnsServerPortTLS, &config)
-		if err != nil {
-			fmt.Println("Error connecting to DNS server:", err)
+			log.Println("[TCP] - Error accepting connection:", err)
 			conn.Close()
 			continue
 		}
 
-		fmt.Println("Connected to DNS server.")
+		log.Println("[TCP] - Connecting to DNS server...")
+		serverTLSConn, err := tls.Dial("tcp", dnsServerAddr+":"+dnsServerPortTLS, &config)
+		if err != nil {
+			log.Println("[TCP] - Error connecting to DNS server:", err)
+			conn.Close()
+			continue
+		}
+
+		log.Printf("[TCP] - Connected to DNS server: %s:%s", dnsServerAddr, dnsServerPortTLS)
 		go copy(conn, serverTLSConn)
 		go copy(serverTLSConn, conn)
+
+		// TODO: log the response from the dns server
 	}
 }
 
 func main() {
-	log.Println("Hello world!")
+
 	udpListener, err := net.ListenPacket("udp", ":5333")
 	if err != nil {
 		panic(err)
@@ -109,8 +117,14 @@ func main() {
 	}
 	defer tcpListener.Close()
 
-	go startProxyUDP(udpListener)
 	go startProxyTCP(tcpListener)
+	go startProxyUDP(udpListener)
 
-	fmt.Scanln()
+	defer udpListener.Close()
+	defer tcpListener.Close()
+
+	forever := make(chan bool)
+
+	<-forever
+
 }
