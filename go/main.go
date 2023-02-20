@@ -21,7 +21,6 @@ func startProxyUDP(udpConn net.PacketConn) error {
 	log.Println("[UDP] - DNS proxy listening on UDP port 53")
 
 	for {
-
 		buffer := make([]byte, 512)
 		n, addr, err := udpConn.ReadFrom(buffer)
 		if err != nil {
@@ -104,13 +103,12 @@ func startProxyTCP(listener net.Listener) error {
 }
 
 func main() {
-
-	udpListener, err := net.ListenPacket("udp", ":5333")
+	udpListener, err := net.ListenPacket("udp", ":53")
 	if err != nil {
 		panic(err)
 	}
 
-	tcpListener, err := net.Listen("tcp", ":5333")
+	tcpListener, err := net.Listen("tcp", ":53")
 	if err != nil {
 		panic(err)
 	}
@@ -123,7 +121,7 @@ func main() {
 	defer tcpListener.Close()
 
 	forever := make(chan bool)
-
 	<-forever
 
+	// TODO: Gracefully shutdown
 }
