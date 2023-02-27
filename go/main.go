@@ -5,6 +5,8 @@ import (
 	"io"
 	"log"
 	"net"
+
+	"github.com/miekg/dns"
 )
 
 const (
@@ -19,9 +21,9 @@ var config = tls.Config{
 
 func startProxyUDP(udpConn net.PacketConn) error {
 	log.Println("[UDP] - DNS proxy listening on UDP port 53")
-
+	buffer := make([]byte, 128)
 	for {
-		buffer := make([]byte, 512)
+
 		n, addr, err := udpConn.ReadFrom(buffer)
 		if err != nil {
 			log.Println("[UDP] - Error reading request:", err)
@@ -44,7 +46,6 @@ func startProxyUDP(udpConn net.PacketConn) error {
 			continue
 		}
 
-		buffer = make([]byte, 512)
 		n, err = conn.Read(buffer)
 		if err != nil {
 			log.Println("[UDP] - Error reading response from DNS server:", err)
@@ -52,8 +53,13 @@ func startProxyUDP(udpConn net.PacketConn) error {
 			continue
 		}
 
-		// TODO: log the response from the dns server
-		log.Printf("[UDP] - Received DNS response from %s \n", dnsServerAddr)
+		msg := &dns.Msg{}
+		if unpackErr := msg.Unpack(buffer); unpackErr != nil {
+			log.Fatal(unpackErr.Error())
+		}
+		log.Printf("[UDP] - reply %s ", msg.Answer)
+
+		//	log.Printf("[UDP] - Received DNS response from %s \n", dnsServerAddr)
 
 		_, err = udpConn.WriteTo(buffer[:n], addr)
 		if err != nil {
@@ -62,6 +68,7 @@ func startProxyUDP(udpConn net.PacketConn) error {
 			continue
 		}
 		conn.Close()
+
 	}
 
 }
@@ -103,12 +110,12 @@ func startProxyTCP(listener net.Listener) error {
 }
 
 func main() {
-	udpListener, err := net.ListenPacket("udp", ":53")
+	udpListener, err := net.ListenPacket("udp", ":5333")
 	if err != nil {
 		panic(err)
 	}
 
-	tcpListener, err := net.Listen("tcp", ":53")
+	tcpListener, err := net.Listen("tcp", ":5333")
 	if err != nil {
 		panic(err)
 	}
