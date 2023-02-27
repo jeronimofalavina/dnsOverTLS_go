@@ -2,10 +2,7 @@ module proxy
 
 go 1.19
 
-require (
-	github.com/davecgh/go-spew v1.1.1
-	github.com/miekg/dns v1.1.51
-)
+require github.com/miekg/dns v1.1.51
 
 require (
 	golang.org/x/mod v0.7.0 // indirect

@@ -11,7 +11,7 @@ This code is a DNS proxy that listens on both TCP and UDP ports and forwards DNS
 
 sudo go run go/main.go
 
-# Don't forget to restart the resolve services (ubuntu): sudo systemctl restart systemd-resolved.service
+# Don't forget to restart the resolve services after you finish testing it (ubuntu): sudo systemctl restart systemd-resolved.service
 ``` 
 
 ### Running the application using docker
